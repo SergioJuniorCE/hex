@@ -1223,10 +1223,17 @@ Labs › Terminal paste (`paste_with_shift`, off by default; on Linux it is a
 General › Advanced row) sends Ctrl+Shift+V instead, for apps that ignore
 a synthetic Ctrl+V (the herdr desktop app). Shift goes down after Ctrl and up
 before it; a Ctrl the user still holds is never pressed or released by Hex. A
-saved change applies to the next paste without restarting the listener.
+saved change applies to the next paste without restarting the listener. Game
+windows always get Ctrl alone: Minecraft's `Screen.isPaste` requires Control
+and rejects Shift and Alt, so a GLFW 3 window (`GLFW30`, Minecraft 1.13 and
+later with JEI) or an LWJGL 2 one (`LWJGL`, older Minecraft with NEI) would
+insert nothing with Ctrl+Shift+V. Linux keeps the shifted chord for every
+window: its paste path has no foreground-window seam yet.
 Source: `control_chord` in [windows/paste.rs](../../src/windows/paste.rs).
-Check: `paste_chords_press_shift_inside_control_and_leave_a_held_control_alone`
-(the synthesized key sequence only; no paste into a real Windows app).
+Checks: `paste_chords_press_shift_inside_control_and_leave_a_held_control_alone`
+(the synthesized key sequence only; no paste into a real Windows app) and
+`game_windows_paste_with_control_alone_whatever_the_terminal_paste_setting_says`
+(the window-class rule; not a real Minecraft paste).
 
 ### Toggle Cancel
 

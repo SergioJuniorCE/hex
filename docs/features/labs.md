@@ -98,7 +98,7 @@ Feature             Pane  Toggle (settings.json, hex settings)   On: what it doe
 ├── Annotate 15 s replay no labs.annotate_replay + capture.replay_hotkey (macOS 27+)
 │                                        keeps a rolling 15 s SCClipBufferingOutput screen buffer for hex capture replay and the replay shortcut;
 │                                        macOS keeps its screen-recording dot lit the whole time it is on
-└── Terminal paste  no    paste_with_shift             (Windows) paste with Ctrl+Shift+V (#477/#478; Linux keeps it in General)
+└── Terminal paste  no    paste_with_shift             (Windows) paste with Ctrl+Shift+V (#477/#478) except in game windows, which paste with Ctrl alone (Linux keeps it in General)
 
 Settings › Labs                          // labs.page, a store (labs/store.rs, labs/drawer.rs)
 ├── Header -> "Labs", Search N labs (⌘F focuses it), Discover | Turned on · N
@@ -1292,7 +1292,9 @@ vocabulary list itself (rewriting and search), and Linux's Terminal paste.
   so.
 - Terminal paste (Windows): paste with Ctrl+Shift+V instead of Ctrl+V for
   apps that ignore a synthetic Ctrl+V (issue 477 / PR 478). Its toggle is the
-  shared `paste_with_shift`; Linux keeps it as a General › Advanced row.
+  shared `paste_with_shift`; Linux keeps it as a General › Advanced row. Game
+  windows keep Ctrl+V: Minecraft's `Screen.isPaste` rejects Shift and Alt, so
+  the shifted chord would insert nothing there.
 
 Checks: `labs_is_one_flat_list_of_toggles_off_by_default`,
 `contributed_options_are_labs_toggles_off_by_default`,
