@@ -13,7 +13,9 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     KEYEVENTF_KEYUP, MAPVK_VK_TO_VSC, MapVirtualKeyExW, SendInput, VK_CONTROL, VK_LWIN, VK_MENU,
     VK_RWIN, VK_SHIFT, VK_V,
 };
-use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    GetClassNameW, GetForegroundWindow, GetWindowThreadProcessId,
+};
 
 const CLIPBOARD_RESTORE_DELAY: Duration = Duration::from_millis(500);
 
@@ -28,6 +30,23 @@ const REMOTE_DESKTOP_RESTORE_DELAY: Duration = Duration::from_secs(3);
 
 fn is_remote_desktop(stem: Option<&str>) -> bool {
     stem.is_some_and(|stem| REMOTE_DESKTOP_STEMS.contains(&stem))
+}
+
+/// Game windows paste with Ctrl alone: Minecraft's `Screen.isPaste`
+/// requires Control and rejects Shift and Alt, so the Terminal paste lab's
+/// Ctrl+Shift+V inserts nothing there. GLFW 3 windows (Minecraft 1.13 and
+/// later, and JEI) are `GLFW30`; LWJGL 2 windows (older Minecraft, and NEI)
+/// are `LWJGL`.
+const GAME_WINDOW_CLASSES: &[&str] = &["GLFW30", "LWJGL"];
+
+fn is_game_window(class: Option<&str>) -> bool {
+    class.is_some_and(|class| GAME_WINDOW_CLASSES.contains(&class))
+}
+
+/// Terminal paste's Ctrl+Shift+V, except in game windows, where Ctrl alone
+/// is paste.
+fn uses_shift_paste(paste_with_shift: bool, window_class: Option<&str>) -> bool {
+    paste_with_shift && !is_game_window(window_class)
 }
 
 enum ClipboardSnapshot {
@@ -160,7 +179,12 @@ impl WindowsPaster {
         if remote_desktop {
             thread::sleep(REMOTE_DESKTOP_PASTE_DELAY);
         }
-        if let Err(error) = send_paste_shortcut(self.paste_with_shift.load(Ordering::Relaxed)) {
+        let paste_with_shift = self.paste_with_shift.load(Ordering::Relaxed);
+        let shift = uses_shift_paste(paste_with_shift, foreground_window_class().as_deref());
+        if paste_with_shift && !shift {
+            tracing::debug!("pasting with Ctrl+V: a game window pastes with Control alone");
+        }
+        if let Err(error) = send_paste_shortcut(shift) {
             restore_clipboard_generation(&self.clipboard_restore, generation);
             return Err(error);
         }
@@ -248,6 +272,22 @@ fn control_chord(
         inputs.push(input(VK_CONTROL, KEYEVENTF_KEYUP));
     }
     inputs
+}
+
+/// The class name of the foreground window, such as `GLFW30` for a GLFW
+/// window or `ConsoleWindowClass` for a console, for paste decisions that
+/// depend on the kind of window the text is going into.
+fn foreground_window_class() -> Option<String> {
+    let window = unsafe { GetForegroundWindow() };
+    if window.is_null() {
+        return None;
+    }
+    let mut buffer = [0_u16; 256];
+    let length = unsafe { GetClassNameW(window, buffer.as_mut_ptr(), buffer.len() as i32) };
+    if length <= 0 {
+        return None;
+    }
+    Some(String::from_utf16_lossy(&buffer[..length as usize]))
 }
 
 /// The scan code of `key` in the foreground window's keyboard layout.
@@ -346,6 +386,23 @@ mod tests {
         assert!(is_remote_desktop(Some("msrdc")));
         assert!(!is_remote_desktop(Some("notepad")));
         assert!(!is_remote_desktop(None));
+    }
+
+    #[test]
+    fn game_windows_paste_with_control_alone_whatever_the_terminal_paste_setting_says() {
+        for &class in GAME_WINDOW_CLASSES {
+            assert!(is_game_window(Some(class)), "{class}");
+            assert!(!uses_shift_paste(true, Some(class)), "{class}");
+            assert!(!uses_shift_paste(false, Some(class)), "{class}");
+        }
+        assert!(uses_shift_paste(true, Some("ConsoleWindowClass")));
+        assert!(uses_shift_paste(
+            true,
+            Some("CASCADIA_HOSTING_WINDOW_CLASS")
+        ));
+        assert!(uses_shift_paste(true, None));
+        assert!(!uses_shift_paste(false, Some("ConsoleWindowClass")));
+        assert!(!uses_shift_paste(false, None));
     }
 
     /// US-layout scan codes for the chord's keys.

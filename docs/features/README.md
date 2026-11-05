@@ -792,6 +792,8 @@ General                                  // settings
 │   └── On -> the hook passes the shortcut's key-down/up on instead of consuming it
 ├── Terminal paste (Advanced on Linux, Labs on Windows; off)
 │   └── On -> paste sends Ctrl+Shift+V instead of Ctrl+V; applies to the next paste
+│       Windows keeps Ctrl alone in game windows (GLFW `GLFW30`, LWJGL `LWJGL`):
+│       Minecraft's paste rule rejects Shift and Alt; Linux has no such seam yet
 ├── Turn off the mic when not dictating (General, under Microphone; off)   // release_microphone_while_idle
 │   ├── One switch, no confirmation; its line says what the state means (issue 61), on every OS
 │   ├── Off (default) -> "The mic stays ready so dictation starts instantly; your system shows it in use"
