@@ -54,6 +54,8 @@ mod scenes;
 #[cfg(hex_capture)]
 mod scrawl;
 #[cfg(hex_capture)]
+pub(crate) mod screenshot_editor;
+#[cfg(hex_capture)]
 pub(crate) mod screenshot_thumbnail;
 mod settings;
 mod shortcut_mode;
@@ -1480,7 +1482,8 @@ fn faded_body(k: &rune_kit::Kit, key: &str, content: El, fades: (f32, f32)) -> E
 #[cfg(all(test, target_os = "linux"))]
 mod tests;
 
-#[cfg(test)]
+#[cfg(any(test, hex_capture))]
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))]
 mod offscreen;
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 //! The screenshot just taken, as a card in the bottom-right corner of the
 //! display under the pointer, as macOS and CleanShot show theirs: it slides
 //! in from the display's edge and leaves the same way. A click opens it in
-//! Preview, a drag carries the file out, and ✕ closes it. It goes by itself
+//! the editor, a drag carries the file out, and ✕ closes it. It goes by itself
 //! a few seconds on, unless the pointer is on it.
 
 use std::path::PathBuf;
@@ -92,15 +92,8 @@ impl Card {
     }
 
     fn open(&mut self, tx: &mut Tx) {
-        #[cfg(target_os = "macos")]
         if let Some(shot) = &self.shot {
-            let opened = std::process::Command::new("/usr/bin/open")
-                .args(["-a", "Preview"])
-                .arg(&shot.path)
-                .spawn();
-            if let Err(error) = opened {
-                tracing::warn!(%error, "could not open the screenshot in Preview");
-            }
+            super::screenshot_editor::open(shot.path.clone());
         }
         self.close(tx);
     }

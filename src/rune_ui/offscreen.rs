@@ -1,8 +1,9 @@
-//! Test renders drawn as Hex's windows and overlays draw them: sRGB
-//! blending into a non-sRGB target. Theme colours resolve for the blend mode
-//! when the view is built, so a runtime turns it on before its first frame.
+//! Renders drawn as Hex's windows and overlays draw them, for tests and the
+//! screenshot editor's export: sRGB blending into a non-sRGB target. Theme
+//! colours resolve for the blend mode when the view is built, so a runtime
+//! turns it on before its first frame.
 
-use rune::render::{OFFSCREEN_FORMAT, Offscreen, Renderer};
+use rune::render::{Gpu, OFFSCREEN_FORMAT, Offscreen, Renderer};
 use rune::text::TextSystem;
 use rune::{Cx, El, Env, Runtime};
 
@@ -33,4 +34,25 @@ pub(crate) fn renderer(device: &wgpu::Device) -> Renderer {
 
 pub(crate) fn target(device: &wgpu::Device, width: u32, height: u32) -> Offscreen {
     Offscreen::with_format(device, width, height, format())
+}
+
+/// `rt` settled and drawn into `width` × `height` pixels: their RGBA.
+pub(crate) fn draw<S: 'static>(gpu: &Gpu, rt: &mut Runtime<S>, width: u32, height: u32) -> Vec<u8> {
+    rt.settle_all();
+    rt.frame(0.0);
+    let mut renderer = renderer(&gpu.device);
+    let target = target(&gpu.device, width, height);
+    renderer.upload_images(&gpu.device, &gpu.queue, &mut rt.images);
+    renderer.prepare(
+        &gpu.device,
+        &gpu.queue,
+        &mut rt.text.atlas,
+        &rt.instances,
+        (width, height),
+    );
+    let mut encoder = gpu.device.create_command_encoder(&Default::default());
+    renderer.draw(&mut encoder, &target.view, rt.clear_color());
+    target.copy(&mut encoder);
+    gpu.queue.submit([encoder.finish()]);
+    target.read(&gpu.device)
 }
